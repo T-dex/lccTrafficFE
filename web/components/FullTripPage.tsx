@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { CameraGrid } from "@/components/CameraGrid";
 import { ForecastInline } from "@/components/ForecastInline";
 import { AUTO_REFRESH_MS, DEBOUNCE_MS, DEFAULT_ADDRESS, STORAGE_KEY, THRESHOLD_MINUTES } from "@/lib/constants";
@@ -160,23 +161,17 @@ export function FullTripPage({ cfg }: { cfg: FullTripConfig }) {
       <section className="controls panel">
         <label htmlFor="address">From (home address)</label>
         <div className="address-row">
-          <input
-            id="address"
-            type="text"
-            placeholder={DEFAULT_ADDRESS}
-            autoComplete="street-address"
+          <AddressAutocomplete
             value={address}
-            onChange={(e) => {
-              setAddress(e.target.value);
+            onChange={(v) => {
+              setAddress(v);
               if (debounceRef.current) clearTimeout(debounceRef.current);
               setStatusText("Address changed — updating soon…");
               debounceRef.current = setTimeout(() => void runEstimate(true), DEBOUNCE_MS);
             }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                if (debounceRef.current) clearTimeout(debounceRef.current);
-                void runEstimate(true);
-              }
+            onCommit={() => {
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              void runEstimate(true);
             }}
           />
           <button type="button" title="Update now" onClick={() => void runEstimate(true)}>

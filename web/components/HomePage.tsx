@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { CanyonDualSign, homeMinutesLines } from "@/components/CanyonDualSign";
 import { PredictiveTrafficOutlook } from "@/components/PredictiveTrafficOutlook";
 import { AUTO_REFRESH_MS, DEBOUNCE_MS, DEFAULT_ADDRESS, STORAGE_KEY } from "@/lib/constants";
@@ -117,13 +118,6 @@ export function HomePage() {
     };
   }, []);
 
-  const onInputChange = (v: string) => {
-    setAddress(v);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    setStatus("Updating soon…");
-    debounceRef.current = setTimeout(() => void runUpdate(true, v.trim()), DEBOUNCE_MS);
-  };
-
   const lccLines = homeMinutesLines(lccData, "LITTLE COTTONWOOD");
   const signState = error ? "error" : loading ? "loading" : "ok";
 
@@ -146,18 +140,17 @@ export function HomePage() {
         <section className="controls controls--minimal">
           <label htmlFor="address">From</label>
           <div className="address-row">
-            <input
-              id="address"
-              type="text"
-              placeholder={DEFAULT_ADDRESS}
-              autoComplete="street-address"
+            <AddressAutocomplete
               value={address}
-              onChange={(e) => onInputChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  if (debounceRef.current) clearTimeout(debounceRef.current);
-                  void runUpdate(true);
-                }
+              onChange={(v) => {
+                setAddress(v);
+                if (debounceRef.current) clearTimeout(debounceRef.current);
+                setStatus("Updating soon…");
+                debounceRef.current = setTimeout(() => void runUpdate(true, v.trim()), DEBOUNCE_MS);
+              }}
+              onCommit={(v) => {
+                if (debounceRef.current) clearTimeout(debounceRef.current);
+                void runUpdate(true, v);
               }}
             />
             <button type="button" title="Update now" onClick={() => void runUpdate(true)}>
