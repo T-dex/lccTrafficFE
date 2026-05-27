@@ -29,7 +29,19 @@ export function FullTripPage({ cfg }: { cfg: FullTripConfig }) {
   const requestId = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const homeCoordsRef = useRef<{ lat: number; lon: number; label: string } | null>(null);
   const [hydrated, setHydrated] = useState(false);
+
+  function estimateBody(addr: string) {
+    const c = homeCoordsRef.current;
+    const useCoords = c && c.label === addr.trim();
+    return {
+      address: addr,
+      threshold_minutes: threshold,
+      include_cameras: true,
+      ...(useCoords ? { home_lat: c.lat, home_lon: c.lon, home_label: c.label } : {}),
+    };
+  }
 
   const clearAutoRefresh = () => {
     if (autoRefreshRef.current) {
@@ -49,16 +61,19 @@ export function FullTripPage({ cfg }: { cfg: FullTripConfig }) {
       }
       setStatusText("Updating from UDOT…");
       try {
-        const canyonData = await fetchEstimate({
-          address: addr,
-          threshold_minutes: threshold,
-          include_cameras: true,
-        });
+        const canyonData = await fetchEstimate(estimateBody(addr));
         if (id !== requestId.current) return;
         try {
           localStorage.setItem(STORAGE_KEY, addr);
         } catch {
           /* ignore */
+        }
+        if (canyonData.home?.lat != null && canyonData.home?.lon != null) {
+          homeCoordsRef.current = {
+            lat: canyonData.home.lat,
+            lon: canyonData.home.lon,
+            label: canyonData.home.label || addr,
+          };
         }
         setData(canyonData);
         setLoading(false);
@@ -164,12 +179,14 @@ export function FullTripPage({ cfg }: { cfg: FullTripConfig }) {
           <AddressAutocomplete
             value={address}
             onChange={(v) => {
+              homeCoordsRef.current = null;
               setAddress(v);
               if (debounceRef.current) clearTimeout(debounceRef.current);
               setStatusText("Address changed — updating soon…");
               debounceRef.current = setTimeout(() => void runEstimate(true), DEBOUNCE_MS);
             }}
-            onCommit={() => {
+            onCommit={(v, coords) => {
+              if (coords) homeCoordsRef.current = coords;
               if (debounceRef.current) clearTimeout(debounceRef.current);
               void runEstimate(true);
             }}

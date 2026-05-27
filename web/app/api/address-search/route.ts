@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { nominatimFetch } from "@/lib/nominatimThrottle";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ const VIEWBOX = "-112.2,40.4,-111.5,41.1";
 
 export async function GET(req: Request) {
   const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
-  if (q.length < 3) {
+  if (q.length < 4) {
     return NextResponse.json([]);
   }
 
@@ -25,10 +26,16 @@ export async function GET(req: Request) {
   });
 
   try {
-    const upstream = await fetch(`${NOMINATIM}?${params}`, {
+    const upstream = await nominatimFetch(`${NOMINATIM}?${params}`, {
       headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
       cache: "no-store",
     });
+    if (upstream.status === 429) {
+      return NextResponse.json(
+        { detail: "Address search rate limit — pause typing or pick a saved address." },
+        { status: 429 },
+      );
+    }
     if (!upstream.ok) {
       return NextResponse.json({ detail: `Geocoder ${upstream.status}` }, { status: 502 });
     }
@@ -55,9 +62,13 @@ export async function GET(req: Request) {
         line && city
           ? `${line}, ${city}${state ? `, ${state}` : ""}`
           : (r.display_name ?? "").split(",").slice(0, 3).join(", ");
+      const lat = r.lat != null ? parseFloat(String(r.lat)) : NaN;
+      const lon = r.lon != null ? parseFloat(String(r.lon)) : NaN;
       return {
         label: short || r.display_name || q,
         full: r.display_name || short || q,
+        lat: Number.isFinite(lat) ? lat : undefined,
+        lon: Number.isFinite(lon) ? lon : undefined,
       };
     });
 

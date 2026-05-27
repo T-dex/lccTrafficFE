@@ -4,7 +4,8 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { DEFAULT_ADDRESS } from "@/lib/constants";
 import { searchAddresses, type AddressSuggestion } from "@/lib/addressSearch";
 
-const SEARCH_DEBOUNCE_MS = 350;
+const SEARCH_DEBOUNCE_MS = 500;
+const MIN_QUERY_LEN = 4;
 
 export function AddressAutocomplete({
   id = "address",
@@ -18,7 +19,7 @@ export function AddressAutocomplete({
   value: string;
   onChange: (value: string) => void;
   /** Fired when user picks a suggestion or confirms with Enter */
-  onCommit?: (value: string) => void;
+  onCommit?: (value: string, coords?: { lat: number; lon: number; label: string }) => void;
   placeholder?: string;
   disabled?: boolean;
 }) {
@@ -42,7 +43,11 @@ export function AddressAutocomplete({
     (s: AddressSuggestion) => {
       onChange(s.full);
       close();
-      onCommit?.(s.full);
+      const coords =
+        s.lat != null && s.lon != null
+          ? { lat: s.lat, lon: s.lon, label: s.full }
+          : undefined;
+      onCommit?.(s.full, coords);
     },
     [onChange, onCommit, close],
   );
@@ -51,7 +56,7 @@ export function AddressAutocomplete({
     (q: string) => {
       if (searchTimer.current) clearTimeout(searchTimer.current);
       const trimmed = q.trim();
-      if (trimmed.length < 3) {
+      if (trimmed.length < MIN_QUERY_LEN) {
         setSuggestions([]);
         setLoading(false);
         close();
@@ -146,7 +151,7 @@ export function AddressAutocomplete({
         }
         onChange={(e) => onInputChange(e.target.value)}
         onFocus={() => {
-          if (value.trim().length >= 3) runSearch(value);
+          if (value.trim().length >= MIN_QUERY_LEN) runSearch(value);
         }}
         onKeyDown={onKeyDown}
       />

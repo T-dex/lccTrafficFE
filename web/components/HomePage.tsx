@@ -28,6 +28,18 @@ export function HomePage() {
   const requestId = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Set when user picks an autocomplete row — skips Nominatim on estimate */
+  const homeCoordsRef = useRef<{ lat: number; lon: number; label: string } | null>(null);
+
+  function estimateBody(addr: string) {
+    const c = homeCoordsRef.current;
+    const useCoords = c && c.label === addr.trim();
+    return {
+      address: addr,
+      include_cameras: true,
+      ...(useCoords ? { home_lat: c.lat, home_lon: c.lon, home_label: c.label } : {}),
+    };
+  }
 
   const clearAutoRefresh = () => {
     if (autoRefreshRef.current) {
@@ -44,12 +56,19 @@ export function HomePage() {
       if (showLoading) setLoading(true);
       setError(null);
       try {
-        const data = await fetchEstimate({ address: addr, include_cameras: true });
+        const data = await fetchEstimate(estimateBody(addr));
         if (id !== requestId.current) return;
         try {
           localStorage.setItem(STORAGE_KEY, addr);
         } catch {
           /* quota / private mode */
+        }
+        if (data.home?.lat != null && data.home?.lon != null) {
+          homeCoordsRef.current = {
+            lat: data.home.lat,
+            lon: data.home.lon,
+            label: data.home.label || addr,
+          };
         }
         setLccData(data);
         setStatus(`From ${shortPlaceLabel(data.home?.label ?? "")}`);
@@ -100,6 +119,13 @@ export function HomePage() {
         } catch {
           /* ignore */
         }
+        if (data.home?.lat != null && data.home?.lon != null) {
+          homeCoordsRef.current = {
+            lat: data.home.lat,
+            lon: data.home.lon,
+            label: data.home.label || addr,
+          };
+        }
         setLccData(data);
         setStatus(`From ${shortPlaceLabel(data.home?.label ?? "")}`);
         setLoading(false);
@@ -143,12 +169,14 @@ export function HomePage() {
             <AddressAutocomplete
               value={address}
               onChange={(v) => {
+                homeCoordsRef.current = null;
                 setAddress(v);
                 if (debounceRef.current) clearTimeout(debounceRef.current);
                 setStatus("Updating soon…");
                 debounceRef.current = setTimeout(() => void runUpdate(true, v.trim()), DEBOUNCE_MS);
               }}
-              onCommit={(v) => {
+              onCommit={(v, coords) => {
+                if (coords) homeCoordsRef.current = coords;
                 if (debounceRef.current) clearTimeout(debounceRef.current);
                 void runUpdate(true, v);
               }}

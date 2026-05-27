@@ -27,17 +27,25 @@ function formatApiError(data: unknown, fallback: string): string {
 
 export async function fetchEstimate(body: {
   address: string;
+  home_lat?: number;
+  home_lon?: number;
+  home_label?: string;
   threshold_minutes?: number;
   include_cameras?: boolean;
   include_forecast?: boolean;
 }): Promise<CanyonEstimate> {
   const addr = String(body.address ?? "").trim();
-  const payload = {
+  const payload: Record<string, unknown> = {
     address: resolveForGeocode(addr),
     threshold_minutes: clampThreshold(body.threshold_minutes ?? THRESHOLD_MINUTES),
     include_cameras: Boolean(body.include_cameras),
     include_forecast: body.include_forecast !== false,
   };
+  if (body.home_lat != null && body.home_lon != null) {
+    payload.home_lat = body.home_lat;
+    payload.home_lon = body.home_lon;
+    if (body.home_label) payload.home_label = body.home_label;
+  }
 
   const res = await fetch("/api/estimate", {
     method: "POST",
