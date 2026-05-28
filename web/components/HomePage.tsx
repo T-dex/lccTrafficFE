@@ -112,7 +112,7 @@ export function HomePage() {
 
     void (async () => {
       try {
-        const data = await fetchEstimate({ address: initial, include_cameras: true });
+        const data = await fetchEstimate(estimateBody(initial));
         if (cancelled || id !== requestId.current) return;
         try {
           localStorage.setItem(STORAGE_KEY, initial);
@@ -123,7 +123,7 @@ export function HomePage() {
           homeCoordsRef.current = {
             lat: data.home.lat,
             lon: data.home.lon,
-            label: data.home.label || addr,
+            label: data.home.label || initial,
           };
         }
         setLccData(data);
