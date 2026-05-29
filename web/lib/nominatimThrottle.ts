@@ -1,7 +1,7 @@
 /** Serialize Nominatim calls (max ~1/sec) within a single serverless instance. */
 const MIN_INTERVAL_MS = 1100;
 let lastCallAt = 0;
-let chain = Promise.resolve();
+let chain: Promise<unknown> = Promise.resolve();
 
 export function nominatimFetch(url: string, init?: RequestInit): Promise<Response> {
   const run = async () => {
