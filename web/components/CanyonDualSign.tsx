@@ -35,8 +35,8 @@ export function CanyonDualSign({
 
 export function homeMinutesLines(data: CanyonEstimate | undefined, name: string): [string, string, string] {
   if (!data?.segments) return [name, "— —", "UNAVAILABLE"];
-  const mins = Math.round(data.minutes_to_top ?? 0);
+  const mins = Math.round(data.estimate_minutes ?? data.minutes_to_top ?? 0);
   const udot = data.segments.udot_top_min;
-  const sub = udot != null ? `CANYON TOP · UDOT ${udot} MIN` : "CANYON TOP";
+  const sub = udot != null ? `TO ALTA · UDOT TOP ${udot} MIN` : "TO ALTA";
   return [name, `${mins} MIN`, sub];
 }

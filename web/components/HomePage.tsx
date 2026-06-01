@@ -64,11 +64,7 @@ export function HomePage() {
           /* quota / private mode */
         }
         if (data.home?.lat != null && data.home?.lon != null) {
-          homeCoordsRef.current = {
-            lat: data.home.lat,
-            lon: data.home.lon,
-            label: data.home.label || addr,
-          };
+          homeCoordsRef.current = { lat: data.home.lat, lon: data.home.lon, label: addr };
         }
         setLccData(data);
         setStatus(`From ${shortPlaceLabel(data.home?.label ?? "")}`);
@@ -120,11 +116,7 @@ export function HomePage() {
           /* ignore */
         }
         if (data.home?.lat != null && data.home?.lon != null) {
-          homeCoordsRef.current = {
-            lat: data.home.lat,
-            lon: data.home.lon,
-            label: data.home.label || initial,
-          };
+          homeCoordsRef.current = { lat: data.home.lat, lon: data.home.lon, label: initial };
         }
         setLccData(data);
         setStatus(`From ${shortPlaceLabel(data.home?.label ?? "")}`);
@@ -152,7 +144,7 @@ export function HomePage() {
       <div className="page page--compact">
         <section className="sign-stage sign-stage--home" aria-labelledby="main-sign-label">
           <p id="main-sign-label" className="sr-only">
-            Estimated drive time to Little Cottonwood canyon top
+            Estimated drive time from your address to Alta
           </p>
           <CanyonDualSign
             prefix="lcc"

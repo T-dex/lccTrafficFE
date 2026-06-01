@@ -69,11 +69,7 @@ export function FullTripPage({ cfg }: { cfg: FullTripConfig }) {
           /* ignore */
         }
         if (canyonData.home?.lat != null && canyonData.home?.lon != null) {
-          homeCoordsRef.current = {
-            lat: canyonData.home.lat,
-            lon: canyonData.home.lon,
-            label: canyonData.home.label || addr,
-          };
+          homeCoordsRef.current = { lat: canyonData.home.lat, lon: canyonData.home.lon, label: addr };
         }
         setData(canyonData);
         setLoading(false);
@@ -139,7 +135,7 @@ export function FullTripPage({ cfg }: { cfg: FullTripConfig }) {
   return (
     <div className="page">
       <nav className="page-nav page-nav--top">
-        <Link href="/">← Canyon top</Link>
+        <Link href="/">← Home</Link>
       </nav>
 
       <section className="sign-stage" aria-labelledby="main-sign-label">
