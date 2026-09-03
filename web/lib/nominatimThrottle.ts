@@ -8,6 +8,15 @@ export function nominatimFetch(url: string, init?: RequestInit): Promise<Respons
     const wait = Math.max(0, MIN_INTERVAL_MS - (Date.now() - lastCallAt));
     if (wait) await new Promise((r) => setTimeout(r, wait));
     lastCallAt = Date.now();
+    const response = await fetch(url, init);
+    if (response.status !== 429) return response;
+
+    const retryAfter = Number(response.headers.get("Retry-After"));
+    const retryWait = Number.isFinite(retryAfter) && retryAfter > 0
+      ? retryAfter * 1000
+      : 2000;
+    await new Promise((r) => setTimeout(r, Math.min(retryWait, 10000)));
+    lastCallAt = Date.now();
     return fetch(url, init);
   };
   const next = chain.then(run, run);
