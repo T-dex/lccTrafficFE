@@ -25,6 +25,20 @@ function formatApiError(data: unknown, fallback: string): string {
   return parts.join("; ") || fallback;
 }
 
+const ESTIMATE_CACHE_KEY = "alta-drive-estimate";
+const ESTIMATE_STALE_MS = 30 * 60 * 1000;
+
+/** Last estimate for this address, so pages can paint instantly while a fresh one loads. */
+export function cachedEstimate(address: string): CanyonEstimate | null {
+  try {
+    const c = JSON.parse(localStorage.getItem(ESTIMATE_CACHE_KEY) ?? "null");
+    if (c?.address === address.trim() && Date.now() - c.at < ESTIMATE_STALE_MS) return c.data;
+  } catch {
+    /* storage disabled or corrupt */
+  }
+  return null;
+}
+
 export async function fetchEstimate(body: {
   address: string;
   home_lat?: number;
@@ -57,6 +71,11 @@ export async function fetchEstimate(body: {
     throw new Error(formatApiError(data, res.statusText));
   }
   if (typeof data === "object" && data !== null && "segments" in data) {
+    try {
+      localStorage.setItem(ESTIMATE_CACHE_KEY, JSON.stringify({ address: addr, at: Date.now(), data }));
+    } catch {
+      /* quota / private mode */
+    }
     return data as CanyonEstimate;
   }
   throw new Error("Unexpected API response shape");

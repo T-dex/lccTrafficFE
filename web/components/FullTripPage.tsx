@@ -6,7 +6,7 @@ import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { CameraGrid } from "@/components/CameraGrid";
 import { ForecastInline } from "@/components/ForecastInline";
 import { AUTO_REFRESH_MS, DEBOUNCE_MS, DEFAULT_ADDRESS, STORAGE_KEY, THRESHOLD_MINUTES } from "@/lib/constants";
-import { fetchEstimate } from "@/lib/api";
+import { cachedEstimate, fetchEstimate } from "@/lib/api";
 import type { CanyonEstimate } from "@/lib/types";
 import { shortPlaceLabel } from "@/lib/shortPlace";
 import { fullTripSignState, thresholdStatusLine } from "@/lib/fullTripUtils";
@@ -26,6 +26,8 @@ export function FullTripPage({ cfg }: { cfg: FullTripConfig }) {
   const [statusText, setStatusText] = useState("Updating from UDOT…");
   const [error, setError] = useState<string | null>(null);
 
+  const dataRef = useRef(data);
+  dataRef.current = data;
   const requestId = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -78,9 +80,13 @@ export function FullTripPage({ cfg }: { cfg: FullTripConfig }) {
         setStatusText(`Updated ${t} · confidence ${canyonData.confidence}`);
       } catch (e) {
         if (id !== requestId.current) return;
-        setData(null);
         setLoading(false);
         const msg = e instanceof Error ? e.message : String(e);
+        if (dataRef.current) {
+          setStatusText(`Showing last update · refresh failed (${msg})`);
+          return;
+        }
+        setData(null);
         setError(msg);
         setStatusText(msg);
       }
@@ -90,13 +96,23 @@ export function FullTripPage({ cfg }: { cfg: FullTripConfig }) {
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)?.trim();
-    setAddress(saved || DEFAULT_ADDRESS);
+    const addr = saved || DEFAULT_ADDRESS;
+    const stale = cachedEstimate(addr);
+    if (stale) {
+      if (stale.home?.lat != null && stale.home?.lon != null) {
+        homeCoordsRef.current = { lat: stale.home.lat, lon: stale.home.lon, label: addr };
+      }
+      setData(stale);
+      setLoading(false);
+      setStatusText("Updating from UDOT…");
+    }
+    setAddress(addr);
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated || !address.trim()) return;
-    void runEstimate(true);
+    void runEstimate(!dataRef.current);
     return () => clearAutoRefresh();
   }, [hydrated, runEstimate]);
 

@@ -6,7 +6,7 @@ import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { CanyonDualSign, homeMinutesLines } from "@/components/CanyonDualSign";
 import { PredictiveTrafficOutlook } from "@/components/PredictiveTrafficOutlook";
 import { AUTO_REFRESH_MS, DEBOUNCE_MS, DEFAULT_ADDRESS, STORAGE_KEY } from "@/lib/constants";
-import { fetchEstimate } from "@/lib/api";
+import { cachedEstimate, fetchEstimate } from "@/lib/api";
 import type { CanyonEstimate } from "@/lib/types";
 import { shortPlaceLabel } from "@/lib/shortPlace";
 
@@ -25,6 +25,8 @@ export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const lccDataRef = useRef(lccData);
+  lccDataRef.current = lccData;
   const requestId = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -71,8 +73,9 @@ export function HomePage() {
         setLoading(false);
       } catch (e) {
         if (id !== requestId.current) return;
-        setError(e instanceof Error ? e.message : String(e));
         setLoading(false);
+        if (lccDataRef.current) return; // keep stale data on refresh failure
+        setError(e instanceof Error ? e.message : String(e));
         setLccData(undefined);
       }
     },
@@ -103,7 +106,15 @@ export function HomePage() {
     setAddress(initial);
 
     const id = ++requestId.current;
-    setLoading(true);
+    const stale = cachedEstimate(initial);
+    if (stale) {
+      if (stale.home?.lat != null && stale.home?.lon != null) {
+        homeCoordsRef.current = { lat: stale.home.lat, lon: stale.home.lon, label: initial };
+      }
+      setLccData(stale);
+      setStatus(`From ${shortPlaceLabel(stale.home?.label ?? "")}`);
+    }
+    setLoading(!stale);
     setError(null);
 
     void (async () => {
@@ -123,8 +134,9 @@ export function HomePage() {
         setLoading(false);
       } catch (e) {
         if (cancelled || id !== requestId.current) return;
-        setError(e instanceof Error ? e.message : String(e));
         setLoading(false);
+        if (lccDataRef.current) return; // keep stale data on refresh failure
+        setError(e instanceof Error ? e.message : String(e));
         setLccData(undefined);
       }
     })();
